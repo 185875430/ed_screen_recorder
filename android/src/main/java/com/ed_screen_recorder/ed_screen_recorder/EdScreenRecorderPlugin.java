@@ -1,14 +1,26 @@
 package com.ed_screen_recorder.ed_screen_recorder;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.PixelFormat;
+import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
+import android.media.Image;
+import android.media.ImageReader;
+import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
+import android.os.Build;
+import android.os.SystemClock;
 import android.util.Log;
+import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -18,13 +30,17 @@ import com.hbisoft.hbrecorder.HBRecorderListener;
 
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
@@ -41,7 +57,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar;
  * EdScreenRecorderPlugin
  */
 public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, MethodCallHandler,
-        HBRecorderListener,PluginRegistry.ActivityResultListener, PluginRegistry.RequestPermissionsResultListener {
+        HBRecorderListener, PluginRegistry.ActivityResultListener, PluginRegistry.RequestPermissionsResultListener {
 
     private FlutterPluginBinding flutterPluginBinding;
     private ActivityPluginBinding activityPluginBinding;
@@ -50,6 +66,7 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
     Result stopRecordingResult;
     Result pauseRecordingResult;
     Result resumeRecordingResult;
+    Result screenShotResult;
     Activity activity;
     private static final int SCREEN_RECORD_REQUEST_CODE = 777;
     private HBRecorder hbRecorder;
@@ -78,6 +95,7 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
         pauseRecordingResult = null;
         resumeRecordingResult = null;
         recentResult = null;
+        screenShotResult = null;
     }
 
     public static void registerWith(Registrar registrar) {
@@ -160,7 +178,7 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
                             != PackageManager.PERMISSION_GRANTED) {
 
                         ActivityCompat.requestPermissions(activity,
-                                new String[]{ Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                                new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                                 444);
                     } else {
                         mediaPermission = true;
@@ -198,6 +216,15 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
                 endDate = call.argument("enddate");
                 hbRecorder.stopScreenRecording();
                 break;
+            case "isAudioEnabled":
+                isAudioEnabled = call.argument("enabled");
+                hbRecorder.isAudioEnabled(isAudioEnabled);
+                result.success(true);
+                break;
+            case "screenShot":
+                screenShotResult = result;
+                screenShot();
+                break;
             default:
                 result.notImplemented();
                 break;
@@ -222,11 +249,14 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
         return true;
     }
 
+    Intent data;
+
     @Override
     public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == SCREEN_RECORD_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK) {
                 if (data != null) {
+                    this.data = data;
                     hbRecorder.startScreenRecording(data, resultCode);
                 }
             }
@@ -382,4 +412,86 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
             return fileName;
         }
     }
+
+//    public static final int REQUEST_MEDIA_PROJECTION = 10001;
+
+//    private void screenShot() {
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+//            MediaProjectionManager mediaProjectionManager = (MediaProjectionManager) flutterPluginBinding.getApplicationContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+//            if (mediaProjectionManager != null) {
+//                Intent intent = mediaProjectionManager.createScreenCaptureIntent();
+//                activity.startActivityForResult(intent, REQUEST_MEDIA_PROJECTION);
+//            }
+//        }
+//    }
+
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    public void screenShot() {
+        Log.d("screenShot", "screenShot isBusyRecording: " + hbRecorder.isBusyRecording());
+        if (!hbRecorder.isBusyRecording()) {
+            return;
+        }
+        MediaProjection mediaProjection = ((MediaProjectionManager) Objects.requireNonNull(flutterPluginBinding.getApplicationContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE))).getMediaProjection(Activity.RESULT_OK, data);
+        WindowManager wm1 = activity.getWindowManager();
+        int width = wm1.getDefaultDisplay().getWidth();
+        int height = wm1.getDefaultDisplay().getHeight();
+        Objects.requireNonNull(mediaProjection);
+        @SuppressLint("WrongConstant")
+        ImageReader imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 60);
+        VirtualDisplay virtualDisplay = null;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            virtualDisplay = mediaProjection.createVirtualDisplay("screen", width, height, 1, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader.getSurface(), null, null);
+        }
+        SystemClock.sleep(1000);
+        Image image = imageReader.acquireLatestImage();
+        if(image!=null){
+            Log.d("screenShot", "screenShot: "+image.getWidth()+" "+image.getHeight());
+        }
+        virtualDisplay.release();
+        Bitmap bitmap = image2Bitmap(image);
+        String path = writeBitmap(bitmap);
+        Log.d("screenShot", "screenShot path: "+path);
+        screenShotResult.success(path);
+        screenShotResult = null;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    public static Bitmap image2Bitmap(Image image) {
+        if (image == null) {
+            Log.e("screenShot", "image2Bitmap: image is null");
+            return null;
+        }
+        int width = image.getWidth();
+        int height = image.getHeight();
+        final Image.Plane[] planes = image.getPlanes();
+        final ByteBuffer buffer = planes[0].getBuffer();
+        int pixelStride = planes[0].getPixelStride();
+        int rowStride = planes[0].getRowStride();
+        int rowPadding = rowStride - pixelStride * width;
+        Bitmap bitmap = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888);
+        bitmap.copyPixelsFromBuffer(buffer);
+        image.close();
+        return bitmap;
+    }
+
+    private String writeBitmap(Bitmap bitmap) {
+        try {
+            String path = flutterPluginBinding.getApplicationContext().getCacheDir() + "/"
+                    + generateFileName("ScreenShot", true)+".png";
+            Log.d("screenShot", "writeBitmap: "+path);
+            File imageFile = new File(path);
+            FileOutputStream oStream = new FileOutputStream(imageFile);
+
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, oStream);
+            oStream.flush();
+            oStream.close();
+            return path;
+        } catch (Exception ex) {
+            Log.e("screenShot", "Error writing bitmap: " + ex.getMessage());
+        }
+        return null;
+    }
+
+
 }

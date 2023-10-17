@@ -89,4 +89,15 @@ class EdScreenRecorder {
   Future<bool> resumeRecord() async {
     return await _channel.invokeMethod('resumeRecordScreen');
   }
+
+  Future<bool> isAudioEnabled(bool enabled) async {
+    return await _channel.invokeMethod('isAudioEnabled',{
+      "enabled": enabled,
+    });
+  }
+
+  Future<String> screenShot() async {
+    return await _channel.invokeMethod('screenShot');
+  }
+
 }
