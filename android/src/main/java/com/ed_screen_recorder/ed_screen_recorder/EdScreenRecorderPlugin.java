@@ -450,10 +450,13 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
         }
         virtualDisplay.release();
         Bitmap bitmap = image2Bitmap(image);
-        String path = writeBitmap(bitmap);
-        Log.d("screenShot", "screenShot path: "+path);
-        screenShotResult.success(path);
+        if(bitmap!=null){
+            String path = writeBitmap(bitmap);
+            Log.d("screenShot", "screenShot path: "+path);
+            screenShotResult.success(path);
+        }
         screenShotResult = null;
+
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
