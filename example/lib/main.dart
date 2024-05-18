@@ -93,6 +93,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> capture() async {
+    try {
+      await screenRecorder?.screenShot();
+    } on PlatformException {
+      kDebugMode ? debugPrint("Error: An error occurred while resume recording.") : null;
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -115,6 +124,7 @@ class _HomePageState extends State<HomePage> {
             ElevatedButton(onPressed: () => resumeRecord(), child: const Text('RESUME RECORD')),
             ElevatedButton(onPressed: () => pauseRecord(), child: const Text('PAUSE RECORD')),
             ElevatedButton(onPressed: () => stopRecord(), child: const Text('STOP RECORD')),
+            ElevatedButton(onPressed: () => capture(), child: const Text('CAPTURE')),
           ],
         ),
       ),
