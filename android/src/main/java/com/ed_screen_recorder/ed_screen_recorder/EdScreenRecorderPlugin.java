@@ -69,6 +69,7 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
     Result screenShotResult;
     Activity activity;
     private static final int SCREEN_RECORD_REQUEST_CODE = 777;
+    private static final int SCREEN_CAPTURE_REQUEST_CODE = 666;
     private HBRecorder hbRecorder;
     boolean isAudioEnabled;
     String fileName;
@@ -261,6 +262,34 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
                 }
             }
         }
+        if(requestCode == SCREEN_CAPTURE_REQUEST_CODE){
+            MediaProjection mediaProjection = ((MediaProjectionManager) Objects.requireNonNull(flutterPluginBinding.getApplicationContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE))).getMediaProjection(Activity.RESULT_OK, data);
+            WindowManager wm1 = activity.getWindowManager();
+            int width = wm1.getDefaultDisplay().getWidth();
+            int height = wm1.getDefaultDisplay().getHeight();
+            Objects.requireNonNull(mediaProjection);
+            @SuppressLint("WrongConstant")
+            ImageReader imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 60);
+            VirtualDisplay virtualDisplay = null;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                virtualDisplay = mediaProjection.createVirtualDisplay("screen", width, height, 1, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader.getSurface(), null, null);
+            }
+            SystemClock.sleep(1000);
+            Image image = imageReader.acquireLatestImage();
+            if(image!=null){
+                Log.d("screenShot", "screenShot: "+image.getWidth()+" "+image.getHeight());
+            }
+            virtualDisplay.release();
+            Bitmap bitmap = image2Bitmap(image);
+            if(bitmap!=null){
+                String path = writeBitmap(bitmap);
+                Log.d("screenShot", "screenShot path: "+path);
+                screenShotResult.success(path);
+            }else {
+                screenShotResult.success("");
+            }
+            screenShotResult = null;
+        }
         return true;
     }
 
@@ -425,37 +454,44 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
 //        }
 //    }
 
-
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void screenShot() {
         Log.d("screenShot", "screenShot isBusyRecording: " + hbRecorder.isBusyRecording());
         if (!hbRecorder.isBusyRecording()) {
             return;
         }
-        MediaProjection mediaProjection = ((MediaProjectionManager) Objects.requireNonNull(flutterPluginBinding.getApplicationContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE))).getMediaProjection(Activity.RESULT_OK, data);
-        WindowManager wm1 = activity.getWindowManager();
-        int width = wm1.getDefaultDisplay().getWidth();
-        int height = wm1.getDefaultDisplay().getHeight();
-        Objects.requireNonNull(mediaProjection);
-        @SuppressLint("WrongConstant")
-        ImageReader imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 60);
-        VirtualDisplay virtualDisplay = null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            virtualDisplay = mediaProjection.createVirtualDisplay("screen", width, height, 1, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader.getSurface(), null, null);
-        }
-        SystemClock.sleep(1000);
-        Image image = imageReader.acquireLatestImage();
-        if(image!=null){
-            Log.d("screenShot", "screenShot: "+image.getWidth()+" "+image.getHeight());
-        }
-        virtualDisplay.release();
-        Bitmap bitmap = image2Bitmap(image);
-        if(bitmap!=null){
-            String path = writeBitmap(bitmap);
-            Log.d("screenShot", "screenShot path: "+path);
-            screenShotResult.success(path);
-        }
-        screenShotResult = null;
+        MediaProjectionManager mediaProjectionManager = (MediaProjectionManager) flutterPluginBinding
+                .getApplicationContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        Intent permissionIntent = mediaProjectionManager != null
+                ? mediaProjectionManager.createScreenCaptureIntent()
+                : null;
+        activity.startActivityForResult(permissionIntent, SCREEN_CAPTURE_REQUEST_CODE);
+//        mediaProjection = ((MediaProjectionManager) Objects.requireNonNull(flutterPluginBinding.getApplicationContext().getSystemService(Context.MEDIA_PROJECTION_SERVICE))).getMediaProjection(Activity.RESULT_OK, data);
+//        WindowManager wm1 = activity.getWindowManager();
+//        int width = wm1.getDefaultDisplay().getWidth();
+//        int height = wm1.getDefaultDisplay().getHeight();
+//        Objects.requireNonNull(mediaProjection);
+//        @SuppressLint("WrongConstant")
+//        ImageReader imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 60);
+//        VirtualDisplay virtualDisplay = null;
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+//            virtualDisplay = mediaProjection.createVirtualDisplay("screen", width, height, 1, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader.getSurface(), null, null);
+//        }
+//        SystemClock.sleep(1000);
+//        Image image = imageReader.acquireLatestImage();
+//        if(image!=null){
+//            Log.d("screenShot", "screenShot: "+image.getWidth()+" "+image.getHeight());
+//        }
+//        virtualDisplay.release();
+//        Bitmap bitmap = image2Bitmap(image);
+//        if(bitmap!=null){
+//            String path = writeBitmap(bitmap);
+//            Log.d("screenShot", "screenShot path: "+path);
+//            screenShotResult.success(path);
+//        }else {
+//            screenShotResult.success("");
+//        }
+//        screenShotResult = null;
 
     }
 

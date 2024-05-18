@@ -96,7 +96,7 @@ class EdScreenRecorder {
     });
   }
 
-  Future<String> screenShot() async {
+  Future<String?> screenShot() async {
     return await _channel.invokeMethod('screenShot');
   }
 
