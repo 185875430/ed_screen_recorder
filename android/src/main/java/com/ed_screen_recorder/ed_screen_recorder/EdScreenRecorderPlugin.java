@@ -388,6 +388,7 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
         }
     }
 
+//    long startTime;
     private Boolean startRecordingScreen() {
 
         try {
@@ -398,6 +399,7 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
                     ? mediaProjectionManager.createScreenCaptureIntent()
                     : null;
             activity.startActivityForResult(permissionIntent, SCREEN_RECORD_REQUEST_CODE);
+//            startTime = System.currentTimeMillis();
             return true;
         } catch (Exception e) {
             return false;
@@ -470,10 +472,10 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
 //                : null;
 //        activity.startActivityForResult(permissionIntent, SCREEN_CAPTURE_REQUEST_CODE);
 
-        if(android.os.Build.VERSION.SDK_INT >=34){
+        if(android.os.Build.VERSION.SDK_INT >=33){
             //dodo
             screenShotResult.success("");
-//            long time= System.currentTimeMillis();
+//            long time= System.currentTimeMillis()-startTime;
 //            Log.d("screenShot", "MediaMetadataRetriever:"+filePath+ "." + fileExtension);
 //            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
 //            try {
@@ -481,7 +483,7 @@ public class EdScreenRecorderPlugin implements FlutterPlugin, ActivityAware, Met
 //
 //                SystemClock.sleep(1000);
 //                Log.d("screenShot", "MediaMetadataRetriever getFrameAtTime:"+time);
-//                Bitmap bitmap = retriever.getFrameAtTime(time*1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+//                Bitmap bitmap = retriever.getFrameAtTime(time, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
 //                if (bitmap != null) {
 //                    String path = writeBitmap(bitmap);
 //                    Log.d("screenShot", "screenShot path: " + path);
